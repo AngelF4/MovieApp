@@ -66,7 +66,7 @@ class MovieCellView: UITableViewCell {
         ])
     }
     
-    func configure(model: ViewModel) {
+    func configure(model: MovieViewModel) {
         movieImageView.kf.setImage(with: URL(string: "https://image.tmdb.org/t/p/w200" + model.imageURL))
         movieName.text = model.title
         movieDescription.text = model.overview

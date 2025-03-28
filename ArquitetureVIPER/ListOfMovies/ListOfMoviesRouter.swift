@@ -17,7 +17,6 @@ class ListOfMoviesRouter {
         interactor.output = presenter
         view.presenter = presenter
         
-        
         window?.rootViewController = view
         window?.makeKeyAndVisible()
     }

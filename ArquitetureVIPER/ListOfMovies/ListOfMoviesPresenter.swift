@@ -8,24 +8,26 @@
 import Foundation
 
 protocol ListOfMoviesUI: AnyObject {
-    func update(movies: [ViewModel])
+    func update(movies: [MovieViewModel])
     func showError(_ message: String)
 }
 
 class ListOfMoviesPresenter {
     var ui: ListOfMoviesUI?
     private let listOfMoviesInteractor: ListOfMoviesInteractor
-    var viewModels: [ViewModel] = []
-    private let mapper: Mapper
+    var viewModels: [MovieViewModel] = []
+    private let mapper: MovieMapper
     
-    init(listOfMoviesInteractor: ListOfMoviesInteractor, mapper: Mapper = Mapper()) {
+    init(listOfMoviesInteractor: ListOfMoviesInteractor, mapper: MovieMapper = MovieMapper()) {
         self.listOfMoviesInteractor = listOfMoviesInteractor
         self.mapper = mapper
     }
     
     func onViewAppear() {
         Task {
-            let models = await (listOfMoviesInteractor.getListOfMovies() != nil ? listOfMoviesInteractor.getListOfMovies()!.results : [])
+            let response = await listOfMoviesInteractor.getListOfMovies()
+            let models = response?.results ?? []
+            //let models = await (listOfMoviesInteractor.getListOfMovies() != nil ? listOfMoviesInteractor.getListOfMovies()!.results : [])
             viewModels = models.map(mapper.map(entity:))
             print("Volver a llamar API")
             ui?.update(movies: viewModels)

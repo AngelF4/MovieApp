@@ -7,9 +7,9 @@
 
 import Foundation
 
-struct Mapper {
-    func map(entity: PopularMovieEntity) -> ViewModel {
-        ViewModel(title: entity.title,
+struct MovieMapper {
+    func map(entity: MovieEntity) -> MovieViewModel {
+        MovieViewModel(title: entity.title,
                   overview: entity.overview,
                   imageURL: entity.imageURL)
     }

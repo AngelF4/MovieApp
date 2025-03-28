@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct PopularMovieEntity: Decodable {
+struct MovieEntity: Codable {
     var id: Int
     var title: String
     var overview: String

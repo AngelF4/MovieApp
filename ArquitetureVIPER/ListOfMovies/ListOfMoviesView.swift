@@ -19,17 +19,21 @@ class ListOfMoviesView: UIViewController {
         return tableView
     }()
     
-    private let errorView: UIView = {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = .systemGray6
-        view.layer.cornerRadius = 8
-        view.isHidden = true
-        return view
+    private let errorStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.backgroundColor = .systemGray6
+        stackView.layer.cornerRadius = 8
+        stackView.spacing = 8
+        stackView.alignment = .center
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.isHidden = true
+        return stackView
     }()
     
     private let errorLabel: UILabel = {
         let label = UILabel()
+        label.text = ""
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .systemRed
         label.font = .systemFont(ofSize: 13, weight: .bold, width: .standard)
@@ -40,15 +44,18 @@ class ListOfMoviesView: UIViewController {
     }()
     
     private lazy var retryButton: UIButton = {
-        var config = UIButton.Configuration.bordered()
+        var config = UIButton.Configuration.borderedTinted()
         config.title = "Reintentar"
         config.image = UIImage(systemName: "arrow.trianglehead.counterclockwise")
         config.buttonSize = .large
+        config.imagePadding = 12
         let button = UIButton(type: .system, primaryAction: UIAction(handler: { [weak self] _ in
             self?.presenter?.onRetry()
             self?.hideError()
+            self?.errorLabel.text = ""
         }))
         button.configuration = config
+        button.clipsToBounds = true
         button.isHidden = true
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
@@ -83,29 +90,26 @@ class ListOfMoviesView: UIViewController {
     
     @objc private func handleRefresh(_ sender: UIRefreshControl) {
         presenter?.onRetry()
+        errorLabel.text = ""
+        hideError()
         sender.endRefreshing()
     }
     
     private func setupErrorLabel() {
-        view.addSubview(errorLabel)
-        view.addSubview(retryButton)
-        view.addSubview(errorView)
+        // Agrega errorLabel y retryButton al errorStackView
+        errorStackView.addArrangedSubview(errorLabel)
+        errorStackView.addArrangedSubview(retryButton)
+        
+        // Agrega errorStackView a la vista principal
+        view.addSubview(errorStackView)
+        errorStackView.layoutMargins = UIEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
+        errorStackView.isLayoutMarginsRelativeArrangement = true
         
         NSLayoutConstraint.activate([
-            errorView.topAnchor.constraint(equalTo: errorLabel.topAnchor, constant: -12),
-            errorView.bottomAnchor.constraint(equalTo: retryButton.bottomAnchor, constant: 12),
-            errorView.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            errorView.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-            
-            errorLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            errorLabel.topAnchor.constraint(equalTo: view.layoutMarginsGuide.topAnchor),
-            errorLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            errorLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            
-            retryButton.topAnchor.constraint(equalTo: errorLabel.bottomAnchor, constant: 15),
-            retryButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            errorLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            errorLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            errorStackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            errorStackView.topAnchor.constraint(equalTo: view.layoutMarginsGuide.topAnchor, constant: 20),
+            errorStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            errorStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
         ])
     }
         
@@ -113,28 +117,27 @@ class ListOfMoviesView: UIViewController {
         DispatchQueue.main.async {
             self.errorLabel.layer.removeAllAnimations()
             self.retryButton.layer.removeAllAnimations()
-            self.errorView.layer.removeAllAnimations()
+            self.errorStackView.layer.removeAllAnimations()
 
             self.errorLabel.text = "Ocurrió un error inesperado: \(message)"
 
             // Inicializa la alpha en 0 para preparar la animación
             self.errorLabel.alpha = 0
             self.retryButton.alpha = 0
-            self.errorView.alpha = 0
+            self.errorStackView.alpha = 0
 
             // Asegúrate de que las vistas estén visibles
             self.errorLabel.isHidden = false
             self.retryButton.isHidden = false
-            self.errorView.isHidden = false
+            self.errorStackView.isHidden = false
 
-            self.view.bringSubviewToFront(self.errorLabel)
-            self.view.bringSubviewToFront(self.retryButton)
+            self.view.bringSubviewToFront(self.errorStackView)
 
             // Animación de fade in
             UIView.animate(withDuration: 0.3) {
                 self.errorLabel.alpha = 1.0
                 self.retryButton.alpha = 1.0
-                self.errorView.alpha = 1.0
+                self.errorStackView.alpha = 1.0
             }
         }
     }
@@ -143,12 +146,12 @@ class ListOfMoviesView: UIViewController {
         DispatchQueue.main.async {
             self.errorLabel.layer.removeAllAnimations()
             self.retryButton.layer.removeAllAnimations()
-            self.errorView.layer.removeAllAnimations()
+            self.errorStackView.layer.removeAllAnimations()
 
             UIView.animate(withDuration: 0.3, animations: {
                 self.errorLabel.alpha = 0
                 self.retryButton.alpha = 0
-                self.errorView.alpha = 0
+                self.errorStackView.alpha = 0
             })
         }
     }
@@ -171,12 +174,26 @@ class ListOfMoviesView: UIViewController {
 extension ListOfMoviesView: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if isLoaded && presenter!.viewModels.isEmpty {
-             return 5 // o el número de celdas de skeleton que desees mostrar
+             return emptyFromAPI()
+             // o el número de celdas de skeleton que desees mostrar
         } else if isLoaded {
              return presenter!.viewModels.count
         } else {
              return 5
         }
+    }
+    
+    private func emptyFromAPI() -> Int {
+        if let existError = errorLabel.text?.isEmpty {
+            if existError {
+                showError("No se encontraron resultados")
+                print("Entro a existError")
+                return 0
+                //Cuando no existe error y hay un array vacio
+            }
+        }
+        return 5
+        //return errorLabel.text?.isEmpty ? 0 : 5
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -193,7 +210,7 @@ extension ListOfMoviesView: UITableViewDataSource {
 }
 
 extension ListOfMoviesView: ListOfMoviesUI {
-    func update(movies: [ViewModel]) {
+    func update(movies: [MovieViewModel]) {
         print("Datos recibidos \(movies)")
         DispatchQueue.main.async {
             self.isLoaded = true
