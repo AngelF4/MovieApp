@@ -9,7 +9,9 @@ import Foundation
 
 protocol ListOfMoviesUI: AnyObject {
     func update(movies: [MovieViewModel])
-    func showError(_ message: String)
+    func showError(_ message: String, errorFromAPI: Bool)
+    func showLoading()
+    func hideLoading()
 }
 
 class ListOfMoviesPresenter {
@@ -25,12 +27,17 @@ class ListOfMoviesPresenter {
     
     func onViewAppear() {
         Task {
+            ui?.showLoading()
             let response = await listOfMoviesInteractor.getListOfMovies()
             let models = response?.results ?? []
-            //let models = await (listOfMoviesInteractor.getListOfMovies() != nil ? listOfMoviesInteractor.getListOfMovies()!.results : [])
             viewModels = models.map(mapper.map(entity:))
-            print("Volver a llamar API")
-            ui?.update(movies: viewModels)
+            
+            if viewModels.isEmpty {
+                ui?.showError("No se encontraron resultados", errorFromAPI: false)
+            } else {
+                ui?.update(movies: viewModels)
+            }
+            ui?.hideLoading()
         }
     }
     
@@ -41,7 +48,8 @@ class ListOfMoviesPresenter {
 
 extension ListOfMoviesPresenter: ListOfMoviesInteractorOutput {
     func didFailFetchingMovies(with error: Error) {
-        ui?.showError(error.localizedDescription)
+        ui?.update(movies: [])
+        ui?.showError(error.localizedDescription, errorFromAPI: true)
         print("Error en Presenter: " + error.localizedDescription)
     }
 }

@@ -9,6 +9,9 @@ import Foundation
 import UIKit
 
 class ListOfMoviesView: UIViewController {
+    private var movies: [MovieViewModel] = []
+    private var isShowingError = false
+    
     private var moviesTableView: UITableView = {
        let tableView = UITableView()
         tableView.translatesAutoresizingMaskIntoConstraints = false
@@ -61,9 +64,14 @@ class ListOfMoviesView: UIViewController {
         return button
     }()
     
-    var presenter: ListOfMoviesPresenter?
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        indicator.hidesWhenStopped = true
+        return indicator
+    }()
     
-    var isLoaded = false
+    var presenter: ListOfMoviesPresenter?
     
     init() {
         super.init(nibName: nil, bundle: nil)
@@ -78,8 +86,17 @@ class ListOfMoviesView: UIViewController {
         view.backgroundColor = .white
         setupTableView()
         setupErrorLabel()
+        setupLoadingIndicator()
         setupRefreshControl()
         presenter?.onViewAppear()
+    }
+    
+    private func setupLoadingIndicator() {
+        view.addSubview(loadingIndicator)
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
     }
     
     private func setupRefreshControl() {
@@ -113,14 +130,15 @@ class ListOfMoviesView: UIViewController {
         ])
     }
         
-    func showError(_ message: String) {
+    func showError(_ message: String, errorFromAPI: Bool) {
         DispatchQueue.main.async {
             self.errorLabel.layer.removeAllAnimations()
             self.retryButton.layer.removeAllAnimations()
             self.errorStackView.layer.removeAllAnimations()
 
             self.errorLabel.text = "Ocurrió un error inesperado: \(message)"
-
+            self.isShowingError = errorFromAPI
+            
             // Inicializa la alpha en 0 para preparar la animación
             self.errorLabel.alpha = 0
             self.retryButton.alpha = 0
@@ -173,48 +191,46 @@ class ListOfMoviesView: UIViewController {
 
 extension ListOfMoviesView: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        if isLoaded && presenter!.viewModels.isEmpty {
-             return emptyFromAPI()
-             // o el número de celdas de skeleton que desees mostrar
-        } else if isLoaded {
-             return presenter!.viewModels.count
+        if isShowingError {
+            return 5
         } else {
-             return 5
+            return movies.isEmpty ? 0 : movies.count
         }
-    }
-    
-    private func emptyFromAPI() -> Int {
-        if let existError = errorLabel.text?.isEmpty {
-            if existError {
-                showError("No se encontraron resultados")
-                print("Entro a existError")
-                return 0
-                //Cuando no existe error y hay un array vacio
-            }
-        }
-        return 5
-        //return errorLabel.text?.isEmpty ? 0 : 5
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        if isLoaded && !presenter!.viewModels.isEmpty {
-             let cell = tableView.dequeueReusableCell(withIdentifier: "MovieCellView", for: indexPath) as! MovieCellView
-             let model = presenter!.viewModels[indexPath.row]
-             cell.configure(model: model)
-             return cell
+        if !movies.isEmpty {
+            let cell = tableView.dequeueReusableCell(withIdentifier: "MovieCellView", for: indexPath) as! MovieCellView
+            let model = movies[indexPath.row]
+            cell.configure(model: model)
+            return cell
         } else {
-             let cell = tableView.dequeueReusableCell(withIdentifier: "SkeletonCellView", for: indexPath) as! SkeletonCellView
-             return cell
+            let cell = tableView.dequeueReusableCell(withIdentifier: "SkeletonCellView", for: indexPath) as! SkeletonCellView
+            return cell
         }
     }
 }
 
 extension ListOfMoviesView: ListOfMoviesUI {
     func update(movies: [MovieViewModel]) {
-        print("Datos recibidos \(movies)")
+        //print("Datos recibidos \(movies)")
         DispatchQueue.main.async {
-            self.isLoaded = true
+            self.movies = movies
+            self.isShowingError = false
             self.moviesTableView.reloadData()
+        }
+    }
+    
+    func showLoading() {
+        DispatchQueue.main.async {
+             self.loadingIndicator.startAnimating()
+             self.view.bringSubviewToFront(self.loadingIndicator)
+        }
+    }
+
+    func hideLoading() {
+        DispatchQueue.main.async {
+             self.loadingIndicator.stopAnimating()
         }
     }
 }
